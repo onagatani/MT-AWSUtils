@@ -24,7 +24,23 @@ my $plugin = __PACKAGE__->new({
     registry       => {
         l10n_lexicon => {
             ja => {
-                'Utility for AWS.' => 'AWS用のユーティリティープラグイン',
+                'Utility for AWS.'     => 'AWS用のユーティリティープラグイン',
+                'access_key'           => 'AWSアクセスキー',
+                'secret_key'           => 'AWSシークレットキー',
+                'region'               => 'リージョン',
+                'awscli_path'          => 'awscliコマンドのパス',
+                'cf_dist_id'           => 'CloudFrontディストリビューションID',
+                'cf_invalidation_path' => 'CloudFrontのキャッシュを削除するパス',
+                's3_bucket'            => '転送先のS3バケット',
+                's3_dest_path'         => '転送先のS3のパス',
+                'hint_access_key'      => 'システム設定を軽視雨しますが、Webサイト設定で上書き可能です',
+                'hint_secret_key'           => 'システム設定を継承しますが、Webサイト設定で上書き可能です',
+                'hint_region'               => 'ap-northeast-1などを指定します',
+                'hint_awscli_path'          => '通常は設定しなくても問題ありません',
+                'hint_cf_dist_id'           => 'CloudFrontのコンソール画面で確認してください',
+                'hint_cf_invalidation_path' => '通常は/*のように設定します',
+                'hint_s3_bucket'            => 's3://などは必要ありません',
+                'hint_s3_dest_path'         => 'S3内のディレクトリを指定します',
             },
         },
         applications => {
@@ -153,25 +169,25 @@ sub _system_config {
     id="access_key"
     label="<__trans phrase="access_key">">
 <input type="text" name="access_key" value="<$mt:getvar name="access_key" escape="html"$>" />
-<p class="hint"><__trans phrase="access_key"></p>
+<p class="hint"><__trans phrase="hint_access_key"></p>
 </mtapp:setting>
 <mtapp:setting
     id="secret_key"
     label="<__trans phrase="secret_key">">
 <input type="text" name="secret_key" value="<$mt:getvar name="secret_key" escape="html"$>" />
-<p class="hint"><__trans phrase="secret_key"></p>
+<p class="hint"><__trans phrase="hint_secret_key"></p>
 </mtapp:setting>
 <mtapp:setting
     id="region"
     label="<__trans phrase="region">">
 <input type="text" name="region" value="<$mt:getvar name="region" escape="html"$>" />
-<p class="hint"><__trans phrase="region"></p>
+<p class="hint"><__trans phrase="hint_region"></p>
 </mtapp:setting>
 <mtapp:setting
     id="awscli_path"
     label="<__trans phrase="awscli_path">">
 <input type="text" name="awscli_path" value="<$mt:getvar name="awscli_path" escape="html"$>" />
-<p class="hint"><__trans phrase="awscli_path"></p>
+<p class="hint"><__trans phrase="hint_awscli_path"></p>
 </mtapp:setting>
 __HTML__
 }
@@ -182,43 +198,43 @@ sub _blog_config {
     id="access_key"
     label="<__trans phrase="access_key">">
 <input type="text" name="access_key" value="<$mt:getvar name="access_key" escape="html"$>" />
-<p class="hint"><__trans phrase="access_key"></p>
+<p class="hint"><__trans phrase="hint_access_key"></p>
 </mtapp:setting>
 <mtapp:setting
     id="secret_key"
     label="<__trans phrase="secret_key">">
 <input type="text" name="secret_key" value="<$mt:getvar name="secret_key" escape="html"$>" />
-<p class="hint"><__trans phrase="secret_key"></p>
+<p class="hint"><__trans phrase="hint_secret_key"></p>
 </mtapp:setting>
 <mtapp:setting
     id="region"
     label="<__trans phrase="region">">
 <input type="text" name="region" value="<$mt:getvar name="region" escape="html"$>" />
-<p class="hint"><__trans phrase="region"></p>
+<p class="hint"><__trans phrase="hint_region"></p>
 </mtapp:setting>
 <mtapp:setting
     id="cf_dist_id"
     label="<__trans phrase="cf_dist_id">">
 <input type="text" name="cf_dist_id" value="<$mt:getvar name="cf_dist_id" escape="html"$>" />
-<p class="hint"><__trans phrase="cf_dist_id"></p>
+<p class="hint"><__trans phrase="hint_cf_dist_id"></p>
 </mtapp:setting>
 <mtapp:setting
     id="cf_invalidation_path"
     label="<__trans phrase="cf_invalidation_path">">
 <input type="text" name="cf_invalidation_path" value="<$mt:getvar name="cf_invalidation_path" escape="html"$>" />
-<p class="hint"><__trans phrase="cf_invalidation_path"></p>
+<p class="hint"><__trans phrase="hint_cf_invalidation_path"></p>
 </mtapp:setting>
 <mtapp:setting
     id="s3_bucket"
     label="<__trans phrase="s3_bucket">">
 <input type="text" name="s3_bucket" value="<$mt:getvar name="s3_bucket" escape="html"$>" />
-<p class="hint"><__trans phrase="s3_bucket"></p>
+<p class="hint"><__trans phrase="hint_s3_bucket"></p>
 </mtapp:setting>
 <mtapp:setting
     id="s3_dest_path"
     label="<__trans phrase="s3_dest_path">">
 <input type="text" name="s3_dest_path" value="<$mt:getvar name="s3_dest_path" escape="html"$>" />
-<p class="hint"><__trans phrase="s3_dest_path"></p>
+<p class="hint"><__trans phrase="hint_s3_dest_path"></p>
 </mtapp:setting>
 __HTML__
 }
