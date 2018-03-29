@@ -5,7 +5,7 @@ use utf8;
 use base qw( TheSchwartz::Worker );
 use TheSchwartz::Job;
 use Data::Dumper;
-
+use AWS::CLIWrapper;
 sub grab_for    {5}
 sub max_retries {5}
 sub retry_delay {1} 
@@ -31,13 +31,20 @@ sub work {
         my $aws_service = $job->coalesce;
         my $aws_task    = $hash->{task};
 
-        my $blog = MT->model('blog')->load($hash->{blog_id}) or next;
+        my $blog = MT->model('blog')->load($hash->{blog_id});
 
-        my $blog_config = $plugin->get_config_hash("blog:" . $blog->id) or return;
+        my $blog_config = $plugin->get_config_hash("blog:" . $blog->id) if $blog;
         my $system_config = $plugin->get_config_hash('system');
 
-        #コンフィグ上書き
-        my %config = (%$system_config, %$blog_config);
+        my %config = %$system_config;
+
+        if ($blog) {
+            for my $key (keys %$blog_config) {
+                if (exists $blog_config->{$key} && defined $blog_config->{$key}) {
+                    $config{$key} = $blog_config->{$key};
+                }
+            }
+        }
         
         my $aws = AWS::CLIWrapper->new(
             region      => $config{region},
@@ -53,16 +60,32 @@ sub work {
         my $res;
         if ($aws_service eq 's3') {
             if ($aws_task eq 'sync') {
-                my $s3 = 's3://' . $config{s3_bucket};
-                $s3 .= $config{s3_dest_path} if defined $config{s3_dest_path};
+                next unless $config{s3_bucket};
 
-                $res = $aws->s3('sync', [$blog->site_path, $s3], {
-                    #exclude     => ['foo', 'bar'],
-                });
+                my $s3 = 's3://' . $config{s3_bucket};
+                $s3 .= '/' unless $s3 =~ m{/$};
+
+                if (my $s3_dest_path = $config{s3_dest_path}) {
+                    $s3 =~ s{^/(.*?)$}{$1};
+                    $s3 .= $config{s3_dest_path};
+                }
+
+                my @exclude_path;
+                if (my $exclude = $hash->{exclude}) {
+                    @exclude_path = split',', $exclude;
+                }
+
+                my $opt = +{};
+                $opt->{exclude} = \@exclude_path if scalar @exclude_path;
+
+                $res = $aws->s3('sync', [$blog->site_path, $s3], $opt);
             }
         }
         elsif ($aws_service eq 'cloudfront') {
             if ($aws_task eq 'create-invalidation') {
+                next unless $config{cf_dist_id};
+                $config{cf_invalidation_path} = '/*' unless defined $config{cf_invalidation_path};
+
                 $res = $aws->cloudfront(
                     'create-invalidation' => {
                         'distribution-id' => $config{cf_dist_id},
@@ -71,13 +94,39 @@ sub work {
                 );
             }
         }
+        elsif ($aws_service eq 'ec2') {
+            if ($aws_task eq 'create-snapshot') {
+                next unless $config{ec2_volume_id};
 
-        if ($res) {
-            $job->completed();  
+                $res = $aws->ec2(
+                    'create-snapshot' => {
+                        'volume-id'   => $config{ec2_volume_id},
+                        'description' => $config{ec2_volume_id},
+                    },
+                );
+            }
         }
         else {
-            MT->log($AWS::CLIWrapper::Error->{Message});
+            next;
+        }
+
+
+        if ($res) {
+            $job->completed();
+        }
+        else {
             $job->failed(sprintf'%s %s : %s', $aws_service, $aws_task, $AWS::CLIWrapper::Error->{Message});
+
+            my $log = +{
+                message => $plugin->translate(
+                    "Execution of AWS [_1] [_2] failed: [_3]", $aws_service, $aws_task,
+                        $AWS::CLIWrapper::Error->{Message}
+                ),
+                level   => MT::Log::ERROR(),
+            };
+            $log->{class} = $blog ? 'blog' : 'system';
+            $log->{blog_id} = $blog->id if $blog;
+            MT->log($log);
         }    
     }
 

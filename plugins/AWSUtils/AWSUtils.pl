@@ -2,7 +2,6 @@ package MT::Plugin::AWSUtils;
 use strict;
 use warnings;
 use base qw( MT::Plugin );
-use AWS::CLIWrapper;
 use Data::Dumper;
 use MT::TheSchwartz;
 use TheSchwartz::Job;
@@ -33,7 +32,8 @@ my $plugin = __PACKAGE__->new({
                 'cf_invalidation_path' => 'CloudFrontのキャッシュを削除するパス',
                 's3_bucket'            => '転送先のS3バケット',
                 's3_dest_path'         => '転送先のS3のパス',
-                'hint_access_key'      => 'システム設定を軽視雨しますが、Webサイト設定で上書き可能です',
+                'ec2_volume_id'        => 'EBS ボリュームID',
+                'hint_access_key'      => 'システム設定を継承しますが、Webサイト設定で上書き可能です',
                 'hint_secret_key'           => 'システム設定を継承しますが、Webサイト設定で上書き可能です',
                 'hint_region'               => 'ap-northeast-1などを指定します',
                 'hint_awscli_path'          => '通常は設定しなくても問題ありません',
@@ -41,6 +41,7 @@ my $plugin = __PACKAGE__->new({
                 'hint_cf_invalidation_path' => '通常は/*のように設定します',
                 'hint_s3_bucket'            => 's3://などは必要ありません',
                 'hint_s3_dest_path'         => 'S3内のディレクトリを指定します',
+                'hint_ec2_volume_id'        => 'EC2のIDではなくEBSボリュームIDを指定して下さい',
             },
         },
         applications => {
@@ -68,10 +69,20 @@ my $plugin = __PACKAGE__->new({
                         condition         => \&_check_perm,
                         view              => [ 'blog', 'website' ],
                     },
+                    'AWSUtils:ec2createsnapshot' => {
+                        label             => "EC2 Create Snapshot",
+                        order             => 200300,
+                        mode              => 'ec2snapshot',
+                        permission        => 'administer',
+                        system_permission => 'administer',
+                        condition         => \&_check_perm,
+                        view              => 'system',
+                    },
                 },
                 methods => {
                     invalidation => \&_invalidation,
                     s3sync       => \&_s3sync,
+                    ec2snapshot  => \&_ec2snapshot,
                 },
             },
         },
@@ -93,6 +104,7 @@ my $plugin = __PACKAGE__->new({
         ['cf_invalidation_path' ,{ Default => '/*' , Scope => 'blog' }],
         ['s3_bucket'  ,{ Default => undef , Scope => 'blog' }],
         ['s3_dest_path' ,{ Default => undef, Scope => 'blog' }],
+        ['ec2_volume_id' ,{ Default => undef, Scope => 'system' }],
     ]),
 });
 
@@ -115,6 +127,38 @@ sub _check_perm {
     return undef;
 }
 
+sub _ec2snapshot {
+    my $app = shift;
+
+    my $job = TheSchwartz::Job->new();
+
+    my $config = $plugin->get_config_hash('system');
+    my $tmpl_param;
+
+    if ($config->{ec2_volume_id}) {
+        $tmpl_param->{ec2_volume_id} = $config->{ec2_volume_id};
+    }
+    else {
+        $tmpl_param->{errmes} =
+            $plugin->translate("Couldn't load ec2-volume-id.");
+    }
+
+    $job->funcname( 'AWSUtils::Worker' );
+    $job->arg({
+       blog_id => '0',
+       task    => 'create-snapshot',
+    });
+    $job->uniqkey('0' . "::EC2::CreateSnapshot");
+    $job->coalesce('ec2');
+    MT::TheSchwartz->insert($job);
+
+    my $tmpl_name = 'ec2_createsnapshot.tmpl';
+
+    my $tmpl = $plugin->load_tmpl($tmpl_name)
+        or return $app->error($plugin->translate("Couldn't load template file. : [_1]", $tmpl_name));
+
+    return $app->build_page($tmpl, $tmpl_param);
+}
 sub _invalidation {
     my $app = shift;
 
@@ -188,6 +232,12 @@ sub _system_config {
     label="<__trans phrase="awscli_path">">
 <input type="text" name="awscli_path" value="<$mt:getvar name="awscli_path" escape="html"$>" />
 <p class="hint"><__trans phrase="hint_awscli_path"></p>
+</mtapp:setting>
+<mtapp:setting
+    id="ec2_volume_id"
+    label="<__trans phrase="ec2_volume_id">">
+<input type="text" name="ec2_volume_id" value="<$mt:getvar name="ec2_volume_id" escape="html"$>" />
+<p class="hint"><__trans phrase="hint_ec2_volume_id"></p>
 </mtapp:setting>
 __HTML__
 }

@@ -1,0 +1,14 @@
+<mt:setvarblock name="page_content">
+<p class="message">
+<mt:if name="errmes">
+<mt:var name="errmes">
+<mt:else>
+<mt:var name="ec2_volume_id">のスナップショットを取得します。
+run-periodic-tasksの実行までお待ち下さい。
+</mt:if>
+</p>
+</mt:setvarblock>
+
+<mt:include name="layout/default.tmpl">
+<mt:var name="layout">
+
