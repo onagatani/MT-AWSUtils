@@ -106,7 +106,7 @@ my $plugin = __PACKAGE__->new({
         tasks => {
             'awsutils_ec2describe' => {
                 name => 'AWSUtils::EC2::DescribeSnapshots',
-                frequency => 1,
+                frequency => 60,
                 code => "AWSUtils::Tasks::ec2describesnapshots",
             },
         },
