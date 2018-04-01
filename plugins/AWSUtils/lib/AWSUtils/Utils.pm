@@ -14,11 +14,12 @@ sub create_config {
 
     my $website = $blog->website if $blog && $blog->is_blog;
 
-    my $blog_config = $plugin->get_config_hash("blog:" . $blog->id) if $blog;
-    $blog_config = +{} if keys %$blog_config;
+    my $website_config = +{};
+    my $blog_config = +{};
 
-    my $website_config = $plugin->get_config_hash("blog:" . $website->id) if $website;
-    $website_config = +{} if keys %$website_config;
+    $blog_config = $plugin->get_config_hash("blog:" . $blog->id) if $blog;
+
+    $website_config = $plugin->get_config_hash("blog:" . $website->id) if $website;
 
     my $system_config = $plugin->get_config_hash('system');
 
