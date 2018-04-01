@@ -4,6 +4,7 @@ use warnings;
 use base qw( MT::Plugin );
 use Data::Dumper;
 use MT::TheSchwartz;
+use MT::PluginData; 
 use TheSchwartz::Job;
 
 our $PLUGIN_NAME = 'AWSUtils';
@@ -69,6 +70,15 @@ my $plugin = __PACKAGE__->new({
                         condition         => \&_check_perm,
                         view              => [ 'blog', 'website' ],
                     },
+                    'AWSUtils:ec2describesnapshots' => {
+                        label             => "EC2 Describe Snapshots",
+                        order             => 200300,
+                        mode              => 'ec2describe',
+                        permission        => 'administer',
+                        system_permission => 'administer',
+                        condition         => \&_check_perm,
+                        view              => 'system',
+                    },
                     'AWSUtils:ec2createsnapshot' => {
                         label             => "EC2 Create Snapshot",
                         order             => 200300,
@@ -83,13 +93,21 @@ my $plugin = __PACKAGE__->new({
                     invalidation => \&_invalidation,
                     s3sync       => \&_s3sync,
                     ec2snapshot  => \&_ec2snapshot,
+                    ec2describe  => \&_ec2describe,
                 },
             },
         },
         task_workers => {
-            awsutils_invalidation => { 
+            awsutils_worker => { 
                 class => 'AWSUtils::Worker',
                 label => 'AWSUtils Worker',
+            },
+        },
+        tasks => {
+            'awsutils_ec2describe' => {
+                name => 'AWSUtils::EC2::DescribeSnapshots',
+                frequency => 1,
+                code => "AWSUtils::Tasks::ec2describesnapshots",
             },
         },
     },
@@ -125,6 +143,23 @@ sub _check_perm {
     }
 
     return undef;
+}
+
+sub _ec2describe {
+    my $app = shift;
+
+    my $data = MT::PluginData->load({
+        plugin => 'AWSUtils',
+        key    => 'describe_snapshots'
+    });
+
+    my $tmpl = $plugin->load_tmpl('ec2describe.tmpl')
+        or return $app->error($plugin->translate("Couldn't load template file. : [_1]", 'ec2describe.tmpl'));
+
+    my $tmpl_param;
+    $tmpl_param->{data} = $data->data();
+
+    return $app->build_page($tmpl, $tmpl_param);
 }
 
 sub _ec2snapshot {

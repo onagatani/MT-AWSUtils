@@ -5,17 +5,20 @@ use utf8;
 use base qw( TheSchwartz::Worker );
 use TheSchwartz::Job;
 use Data::Dumper;
+use AWSUtils::Exec;
+use AWSUtils::Utils qw/create_config/;
 use AWS::CLIWrapper;
+
 sub grab_for    {5}
 sub max_retries {5}
 sub retry_delay {1} 
+
+my $plugin = MT->component('AWSUtils');
 
 sub work {
     my $class = shift;
 
     my TheSchwartz::Job $job = shift;
-
-    my $plugin = MT->component('AWSUtils');
 
     my @jobs;
     push @jobs, $job;
@@ -27,83 +30,37 @@ sub work {
 
     foreach $job (@jobs) {
 
-        my $hash = $job->arg;
+        my $args = $job->arg;
         my $aws_service = $job->coalesce;
-        my $aws_task    = $hash->{task};
+        my $aws_task    = $args->{task};
 
-        my $blog = MT->model('blog')->load($hash->{blog_id});
+        my $blog = MT->model('blog')->load($args->{blog_id});
 
-        my $blog_config = $plugin->get_config_hash("blog:" . $blog->id) if $blog;
-        my $system_config = $plugin->get_config_hash('system');
+        my $config = create_config($blog);
 
-        my %config = %$system_config;
-
-        if ($blog) {
-            for my $key (keys %$blog_config) {
-                if (exists $blog_config->{$key} && defined $blog_config->{$key}) {
-                    $config{$key} = $blog_config->{$key};
-                }
-            }
-        }
-        
-        my $aws = AWS::CLIWrapper->new(
-            region      => $config{region},
-            awscli_path => $config{awscli_path},
-            nofork      => 1,
-            timeout     => 600,
-        );
-
-        local $ENV{AWS_DEFAULT_OUTPUT}    = 'json';
-        local $ENV{AWS_ACCESS_KEY_ID}     = $config{access_key};
-        local $ENV{AWS_SECRET_ACCESS_KEY} = $config{secret_key};
+        my $aws = AWSUtils::Exec->new;
 
         my $res;
         if ($aws_service eq 's3') {
             if ($aws_task eq 'sync') {
-                next unless $config{s3_bucket};
-
-                my $s3 = 's3://' . $config{s3_bucket};
-                $s3 .= '/' unless $s3 =~ m{/$};
-
-                if (my $s3_dest_path = $config{s3_dest_path}) {
-                    $s3 =~ s{^/(.*?)$}{$1};
-                    $s3 .= $config{s3_dest_path};
-                }
-
-                my @exclude_path;
-                if (my $exclude = $hash->{exclude}) {
-                    @exclude_path = split',', $exclude;
-                }
-
-                my $opt = +{};
-                $opt->{exclude} = \@exclude_path if scalar @exclude_path;
-
-                $res = $aws->s3('sync', [$blog->site_path, $s3], $opt);
+                $res = $aws->s3_sync(+{
+                    s3_bucket    => $config->{s3_bucket} || undef,
+                    s3_dest_path => $config->{s3_dest_path} || undef.
+                    exclude      => $args->{exclude} || undef,
+                });
             }
         }
         elsif ($aws_service eq 'cloudfront') {
             if ($aws_task eq 'create-invalidation') {
-                next unless $config{cf_dist_id};
-                $config{cf_invalidation_path} = '/*' unless defined $config{cf_invalidation_path};
-
-                $res = $aws->cloudfront(
-                    'create-invalidation' => {
-                        'distribution-id' => $config{cf_dist_id},
-                        'paths' => $config{cf_invalidation_path},
-                    },
-                );
+                $res = $aws->cloudfront_invalidation(+{
+                    cf_invalidation_path => $config->{cf_invalidation_path} || undef,
+                    cf_dist_id           => $config->{cf_dist_id} || undef,
+                });
             }
         }
         elsif ($aws_service eq 'ec2') {
             if ($aws_task eq 'create-snapshot') {
-                next unless $config{ec2_volume_id};
-
-                $res = $aws->ec2(
-                    'create-snapshot' => {
-                        'volume-id'   => $config{ec2_volume_id},
-                        'description' => $config{ec2_volume_id},
-                    },
-                );
+                $res = $aws->create_snapshot();
             }
         }
         else {
