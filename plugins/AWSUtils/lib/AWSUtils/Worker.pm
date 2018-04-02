@@ -30,14 +30,13 @@ sub work {
 
     foreach $job (@jobs) {
 
-        my $args = $job->arg;
+        my $args        = $job->arg;
         my $aws_service = $job->coalesce;
         my $aws_task    = $args->{task};
 
         my $blog = MT->model('blog')->load($args->{blog_id});
 
         my $config = create_config($blog);
-
         my $aws = AWSUtils::Exec->new;
 
         my $res;
@@ -45,7 +44,7 @@ sub work {
             if ($aws_task eq 'sync') {
                 $res = $aws->s3_sync(+{
                     s3_bucket    => $config->{s3_bucket} || undef,
-                    s3_dest_path => $config->{s3_dest_path} || undef.
+                    s3_dest_path => $config->{s3_dest_path} || undef,
                     exclude      => $args->{exclude} || undef,
                 });
             }

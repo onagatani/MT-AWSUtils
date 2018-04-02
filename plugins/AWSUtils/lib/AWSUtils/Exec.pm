@@ -116,6 +116,5 @@ sub _describe_snapshots {
     );
 }
 
-
 1;
 __END__

@@ -27,7 +27,6 @@ sub ec2describesnapshots {
     my $aws = AWSUtils::Exec->new;
 
     my $res = $aws->describe_snapshots(); 
-
     my @lists;
 
     for my $snapshot (@{$res->{Snapshots}}) {
@@ -36,7 +35,6 @@ sub ec2describesnapshots {
             SnapshotId => $snapshot->{'SnapshotId'} || undef,
         };
     }
-
     $data->data(\@lists);
     $data->save;
 

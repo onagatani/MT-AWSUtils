@@ -1,0 +1,24 @@
+<mt:setvarblock name="page_title"><__trans phrase="EC2 Describe Snapshot"></mt:setvarblock>
+<mt:setvarblock name="page_content">
+<p class="content">
+<mt:if name="data">
+<table id="awsutils" class="">
+<tr class="">
+<th class="">SnapshotId</th>
+<th class="">StartTime</th>
+<mt:loop name="data">
+<tr class="">
+<td class=""><mt:var name="SnapshotId"></td>
+<td class=""><mt:var name="StartTime"></td>
+</tr>
+</mt:loop>
+</table>
+<mt:else>
+現在snapshotはありません
+</mt:if>
+</p>
+</mt:setvarblock>
+<mt:include name="layout/default.tmpl">
+<mt:var name="layout">
+
+

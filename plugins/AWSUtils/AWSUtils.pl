@@ -25,24 +25,24 @@ my $plugin = __PACKAGE__->new({
         l10n_lexicon => {
             ja => {
                 'Utility for AWS.'     => 'AWS用のユーティリティープラグイン',
-                'access_key'           => 'AWSアクセスキー',
-                'secret_key'           => 'AWSシークレットキー',
+                'AWS Access Key'       => 'AWSアクセスキー',
+                'AWS Secret Key'       => 'AWSシークレットキー',
                 'region'               => 'リージョン',
-                'awscli_path'          => 'awscliコマンドのパス',
-                'cf_dist_id'           => 'CloudFrontディストリビューションID',
-                'cf_invalidation_path' => 'CloudFrontのキャッシュを削除するパス',
-                's3_bucket'            => '転送先のS3バケット',
-                's3_dest_path'         => '転送先のS3のパス',
-                'ec2_volume_id'        => 'EBS ボリュームID',
-                'hint_access_key'      => 'システム設定を継承しますが、Webサイト設定で上書き可能です',
-                'hint_secret_key'           => 'システム設定を継承しますが、Webサイト設定で上書き可能です',
-                'hint_region'               => 'ap-northeast-1などを指定します',
-                'hint_awscli_path'          => '通常は設定しなくても問題ありません',
-                'hint_cf_dist_id'           => 'CloudFrontのコンソール画面で確認してください',
-                'hint_cf_invalidation_path' => '通常は/*のように設定します',
-                'hint_s3_bucket'            => 's3://などは必要ありません',
-                'hint_s3_dest_path'         => 'S3内のディレクトリを指定します',
-                'hint_ec2_volume_id'        => 'EC2のIDではなくEBSボリュームIDを指定して下さい',
+                'awscli path'          => 'awscliコマンドのパス',
+                'CloudFront Distribution ID' => 'CloudFrontディストリビューションID',
+                'CloudFront Invalidation Path' => 'CloudFrontのキャッシュを削除するパス',
+                'S3 Bucket'            => '転送先のS3バケット',
+                'S3 Destination Path'         => '転送先のS3のパス',
+                'EC2 EBS Volume ID'        => 'EBS ボリュームID',
+                'hint: AWS Access Key'  => 'Cloudfront/s3/ebsの権限が必要になります',
+                'hint: AWS Secret Key'  => 'Cloudfront/s3/ebsの権限が必要になります',
+                'hint: region'               => 'ap-northeast-1などを指定します',
+                'hint: awscli path'          => '通常は設定しなくても問題ありません',
+                'hint: CloudFront Distribution ID'           => 'CloudFrontのコンソール画面で確認してください',
+                'hint: CloudFront Invalidation Path' => '通常は/*のように設定します',
+                'hint: S3 Bucket'            => 's3://などは必要ありません',
+                'hint: S3 Destination Path'         => 'S3内のディレクトリを指定します',
+                'hint: EC2 EBS Volume ID' => 'EC2のIDではなくEBSボリュームIDを指定して下さい(vol-から始まります)',
             },
         },
         applications => {
@@ -106,7 +106,7 @@ my $plugin = __PACKAGE__->new({
         tasks => {
             'awsutils_ec2describe' => {
                 name => 'AWSUtils::EC2::DescribeSnapshots',
-                frequency => 60,
+                frequency => 300,
                 code => "AWSUtils::Tasks::ec2describesnapshots",
             },
         },
@@ -114,15 +114,15 @@ my $plugin = __PACKAGE__->new({
     system_config_template => \&_system_config,
     blog_config_template => \&_blog_config,
     settings => MT::PluginSettings->new([
-        ['access_key' ,{ Default => undef , Scope => [qw/system blog/] }],
-        ['secret_key' ,{ Default => undef , Scope => [qw/system blog/] }],
-        ['region'     ,{ Default => 'ap-northeast-1', Scope => [qw/system blog/] }],
+        ['access_key' ,{ Default => undef , Scope => 'system' }],
+        ['secret_key' ,{ Default => undef , Scope => 'system' }],
+        ['region'     ,{ Default => 'ap-northeast-1', Scope => 'system' }],
+        ['ec2_volume_id' ,{ Default => undef, Scope => 'system' }],
         ['awscli_path',{ Default => 'aws', Scope => 'system' }],
         ['cf_dist_id' ,{ Default => undef , Scope => 'blog' }],
         ['cf_invalidation_path' ,{ Default => '/*' , Scope => 'blog' }],
         ['s3_bucket'  ,{ Default => undef , Scope => 'blog' }],
         ['s3_dest_path' ,{ Default => undef, Scope => 'blog' }],
-        ['ec2_volume_id' ,{ Default => undef, Scope => 'system' }],
     ]),
 });
 
@@ -153,11 +153,11 @@ sub _ec2describe {
         key    => 'describe_snapshots'
     });
 
-    my $tmpl = $plugin->load_tmpl('ec2describe.tmpl')
+    my $tmpl = $plugin->load_tmpl('ec2_describesnapshot.tmpl')
         or return $app->error($plugin->translate("Couldn't load template file. : [_1]", 'ec2describe.tmpl'));
 
     my $tmpl_param;
-    $tmpl_param->{data} = $data->data();
+    $tmpl_param->{data} = $data->data() || undef;
 
     return $app->build_page($tmpl, $tmpl_param);
 }
@@ -234,7 +234,7 @@ sub _s3sync {
     $job->coalesce('s3');
     MT::TheSchwartz->insert($job);
 
-    my $tmpl_name = 's3sync.tmpl';
+    my $tmpl_name = 's3_sync.tmpl';
 
     my $tmpl = $plugin->load_tmpl($tmpl_name)
         or return $app->error($plugin->translate("Couldn't load template file. : [_1]", $tmpl_name));
@@ -246,33 +246,33 @@ sub _system_config {
     return <<'__HTML__';
 <mtapp:setting
     id="access_key"
-    label="<__trans phrase="access_key">">
+    label="<__trans phrase="AWS Access Key">">
 <input type="text" name="access_key" value="<$mt:getvar name="access_key" escape="html"$>" />
-<p class="hint"><__trans phrase="hint_access_key"></p>
+<p class="hint"><__trans phrase="hint: AWS Access Key"></p>
 </mtapp:setting>
 <mtapp:setting
     id="secret_key"
-    label="<__trans phrase="secret_key">">
+    label="<__trans phrase="AWD Secret Key">">
 <input type="text" name="secret_key" value="<$mt:getvar name="secret_key" escape="html"$>" />
-<p class="hint"><__trans phrase="hint_secret_key"></p>
+<p class="hint"><__trans phrase="hint: AWS Secret Key"></p>
 </mtapp:setting>
 <mtapp:setting
     id="region"
     label="<__trans phrase="region">">
 <input type="text" name="region" value="<$mt:getvar name="region" escape="html"$>" />
-<p class="hint"><__trans phrase="hint_region"></p>
+<p class="hint"><__trans phrase="hint: region"></p>
 </mtapp:setting>
 <mtapp:setting
     id="awscli_path"
-    label="<__trans phrase="awscli_path">">
+    label="<__trans phrase="awscli path">">
 <input type="text" name="awscli_path" value="<$mt:getvar name="awscli_path" escape="html"$>" />
-<p class="hint"><__trans phrase="hint_awscli_path"></p>
+<p class="hint"><__trans phrase="hint: awscli path"></p>
 </mtapp:setting>
 <mtapp:setting
     id="ec2_volume_id"
-    label="<__trans phrase="ec2_volume_id">">
+    label="<__trans phrase="EC2 EBS Volume ID">">
 <input type="text" name="ec2_volume_id" value="<$mt:getvar name="ec2_volume_id" escape="html"$>" />
-<p class="hint"><__trans phrase="hint_ec2_volume_id"></p>
+<p class="hint"><__trans phrase="hint: EC2 EBS Volume ID"></p>
 </mtapp:setting>
 __HTML__
 }
@@ -280,46 +280,28 @@ __HTML__
 sub _blog_config {
     return <<'__HTML__';
 <mtapp:setting
-    id="access_key"
-    label="<__trans phrase="access_key">">
-<input type="text" name="access_key" value="<$mt:getvar name="access_key" escape="html"$>" />
-<p class="hint"><__trans phrase="hint_access_key"></p>
-</mtapp:setting>
-<mtapp:setting
-    id="secret_key"
-    label="<__trans phrase="secret_key">">
-<input type="text" name="secret_key" value="<$mt:getvar name="secret_key" escape="html"$>" />
-<p class="hint"><__trans phrase="hint_secret_key"></p>
-</mtapp:setting>
-<mtapp:setting
-    id="region"
-    label="<__trans phrase="region">">
-<input type="text" name="region" value="<$mt:getvar name="region" escape="html"$>" />
-<p class="hint"><__trans phrase="hint_region"></p>
-</mtapp:setting>
-<mtapp:setting
     id="cf_dist_id"
-    label="<__trans phrase="cf_dist_id">">
+    label="<__trans phrase="CloudFront Distribution ID">">
 <input type="text" name="cf_dist_id" value="<$mt:getvar name="cf_dist_id" escape="html"$>" />
-<p class="hint"><__trans phrase="hint_cf_dist_id"></p>
+<p class="hint"><__trans phrase="hint: CloudFront Distribution ID"></p>
 </mtapp:setting>
 <mtapp:setting
     id="cf_invalidation_path"
-    label="<__trans phrase="cf_invalidation_path">">
+    label="<__trans phrase="CloudFront Invalidation Path">">
 <input type="text" name="cf_invalidation_path" value="<$mt:getvar name="cf_invalidation_path" escape="html"$>" />
-<p class="hint"><__trans phrase="hint_cf_invalidation_path"></p>
+<p class="hint"><__trans phrase="hint: CloudFront Invalidation Path"></p>
 </mtapp:setting>
 <mtapp:setting
     id="s3_bucket"
-    label="<__trans phrase="s3_bucket">">
+    label="<__trans phrase="S3 Bucket">">
 <input type="text" name="s3_bucket" value="<$mt:getvar name="s3_bucket" escape="html"$>" />
-<p class="hint"><__trans phrase="hint_s3_bucket"></p>
+<p class="hint"><__trans phrase="hint: S3 Bucket"></p>
 </mtapp:setting>
 <mtapp:setting
     id="s3_dest_path"
-    label="<__trans phrase="s3_dest_path">">
+    label="<__trans phrase="S3 Destination Path">">
 <input type="text" name="s3_dest_path" value="<$mt:getvar name="s3_dest_path" escape="html"$>" />
-<p class="hint"><__trans phrase="hint_s3_dest_path"></p>
+<p class="hint"><__trans phrase="hint: S3 Destination Path"></p>
 </mtapp:setting>
 __HTML__
 }
