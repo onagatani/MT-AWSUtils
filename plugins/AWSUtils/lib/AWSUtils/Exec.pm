@@ -59,10 +59,9 @@ sub _s3_sync {
     return unless $opt->{s3_bucket};
 
     my $s3 = 's3://' . $opt->{s3_bucket};
-    $s3 .= '/' unless $s3 =~ m{/$};
 
-    if (exists $opt->{s3_dest_path} && defined $opt->{s3_dest_path}) {
-        $s3 =~ s{^/(.*?)$}{$1};
+    if ($opt->{s3_dest_path}) {
+        $s3 .= '/'; 
         $s3 .= $opt->{s3_dest_path};
     }
 
