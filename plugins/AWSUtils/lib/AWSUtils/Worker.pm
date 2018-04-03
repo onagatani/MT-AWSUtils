@@ -34,7 +34,7 @@ sub work {
         my $aws_service = $job->coalesce;
         my $aws_task    = $args->{task};
 
-        my $blog = MT->model('blog')->load($args->{blog_id});
+        my $blog = MT->model('blog')->load($args->{blog_id}) if $args->{blog_id};
 
         my $config = create_config($blog);
         my $aws = AWSUtils::Exec->new;
@@ -42,7 +42,9 @@ sub work {
         my $res;
         if ($aws_service eq 's3') {
             if ($aws_task eq 'sync') {
+                next unless $blog;
                 $res = $aws->s3_sync(+{
+                    local_path   => $blog->site_path,
                     s3_bucket    => $config->{s3_bucket} || undef,
                     s3_dest_path => $config->{s3_dest_path} || undef,
                     exclude      => $args->{exclude} || undef,

@@ -58,12 +58,12 @@ sub _s3_sync {
     my ($self, $opt) = @_;
     return unless $opt->{s3_bucket};
 
-    my $s3 = 's3://' . $opt->{s3_bucket};
+    my $remote_path = $opt->{s3_bucket} . '/';
+    $remote_path .= $opt->{s3_dest_path} if $opt->{s3_dest_path};
+    $remote_path =~ s{/+}{/}img;
+    $remote_path =~ s{^(.*?)/$}{$1}img;
 
-    if ($opt->{s3_dest_path}) {
-        $s3 .= '/'; 
-        $s3 .= $opt->{s3_dest_path};
-    }
+    my $s3 = 's3://' . $remote_path;
 
     my @exclude_path;
     if (my $exclude = $opt->{exclude}) {
