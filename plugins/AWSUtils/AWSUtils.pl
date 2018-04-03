@@ -252,7 +252,7 @@ sub _system_config {
 </mtapp:setting>
 <mtapp:setting
     id="secret_key"
-    label="<__trans phrase="AWD Secret Key">">
+    label="<__trans phrase="AWS Secret Key">">
 <input type="text" name="secret_key" value="<$mt:getvar name="secret_key" escape="html"$>" />
 <p class="hint"><__trans phrase="hint: AWS Secret Key"></p>
 </mtapp:setting>
