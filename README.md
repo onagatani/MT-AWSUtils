@@ -1,8 +1,43 @@
-* プラグインはアルファ版です。MT7で簡単な動作確認だけしております
+AWSUtils
+====
 
-* perlモジュールAWS::CLIWrapperを事前に導入してください  
-* pythonモジュールawscliを事前に導入してください  
-* AWS IAMでアクセスキーとシークレットを取得してください（必要な権限を追加してください）  
+MovableType管理画面でAWSを操作するプラグインです。
+
+## スリーンショット
+![スクリーンショット](https://user-images.githubusercontent.com/375844/38234872-24368c7a-375a-11e8-9b74-4c5a3770642c.png)
+
+## 機能
+* スナップショットの取得/一覧表示  
+* CloudFrontのキャッシュ削除  
+  * WebSite/ブログ個別に設定可能  
+* S3への転送機能  
+  * WebSite/ブログ個別に設定可能  
+    * WebSiteを転送するとブログも一緒に転送されます  
+    * Cloudfrontが登録されている場合はInvalidationもします  
+
+## 動作環境
+
+* Movable Type 7  
+  * MT6は未検証です  
+* PSGI/CGI  
 * run-periodic-tasksで動作します  
-* WebSite/Blog毎に個別の設定が可能です。使用前にplguin設定を行って下さい   
-* プラグインを利用して損害があっても当方はなんら責任を負いません。十分検証の上ご利用下さい  
+* 必要な追加CPANモジュール  
+  * Module::Functions  
+  * AWS::CLIWrapper  
+  * Class::Accessor::Lite  
+* awscliラッパーを事前にインストールして下さい（Amazon Linuxの場合は必要ありません）。configureは必要ありません。  
+
+## 設定
+プラグインセッティングでAWSのアクセスキーやシークレットを登録する必要があります。
+ブログに設定が存在しない場合はWebSiteの設定を引き継ぎます。
+
+## 注意
+プラグインはβ版です。動作保証は致しません。十分検証の上ご利用ください。
+
+## Licence
+
+[ライセンス](https://github.com/onagatani/MT-AWSUtils/blob/master/LICENSE)
+
+## Author
+
+[onagatani](https://github.com/onagatani)
