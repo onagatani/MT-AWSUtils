@@ -25,7 +25,7 @@ MovableType管理画面でAWSを操作するプラグインです。
   * Module::Functions  
   * AWS::CLIWrapper  
   * Class::Accessor::Lite  
-* awscliラッパーを事前にインストールして下さい（Amazon Linuxの場合は必要ありません）。configureは必要ありません。  
+* pythonモジュールawscliを事前にインストールして下さい（Amazon Linuxの場合は必要ありません）。configureは必要ありません。  
 
 ## 設定
 プラグインセッティングでAWSのアクセスキーやシークレットを登録する必要があります。
