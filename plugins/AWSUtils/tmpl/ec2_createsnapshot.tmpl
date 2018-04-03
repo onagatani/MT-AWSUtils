@@ -1,10 +1,12 @@
+<mt:setvarblock name="page_title"><__trans phrase="EC2 Create Snapshot"></mt:setvarblock>
 <mt:setvarblock name="page_content">
 <p class="message">
 <mt:if name="errmes">
 <mt:var name="errmes">
 <mt:else>
-<mt:var name="ec2_volume_id">のスナップショットを取得します。
-run-periodic-tasksの実行までお待ち下さい。
+<mt:var name="ec2_volume_id">のスナップショットを取得します。 <br />
+run-periodic-tasksの実行までお待ち下さい。<br />
+実行結果はログに記録されます。
 </mt:if>
 </p>
 </mt:setvarblock>

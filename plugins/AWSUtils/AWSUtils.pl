@@ -157,7 +157,7 @@ sub _ec2describe {
         or return $app->error($plugin->translate("Couldn't load template file. : [_1]", 'ec2describe.tmpl'));
 
     my $tmpl_param;
-    $tmpl_param->{data} = $data->data() || undef;
+    $tmpl_param->{data} = $data->data() if $data;
 
     return $app->build_page($tmpl, $tmpl_param);
 }

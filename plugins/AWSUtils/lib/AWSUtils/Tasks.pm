@@ -11,6 +11,8 @@ sub ec2describesnapshots {
     my $plugin = MT->component('AWSUtils');
     my $config = create_config();
 
+    return unless $config->{ec2_volume_id};
+
     my $term = {
         plugin => 'AWSUtils',
         key    => 'describe_snapshots'

@@ -8,6 +8,7 @@ use Data::Dumper;
 use AWSUtils::Exec;
 use AWSUtils::Utils qw/create_config/;
 use AWS::CLIWrapper;
+use JSON;
 
 sub grab_for    {5}
 sub max_retries {5}
@@ -49,6 +50,10 @@ sub work {
                     s3_dest_path => $config->{s3_dest_path} || undef,
                     exclude      => $args->{exclude} || undef,
                 });
+                $res .= $aws->cloudfront_invalidation(+{
+                    cf_invalidation_path => $config->{cf_invalidation_path} || undef,
+                    cf_dist_id           => $config->{cf_dist_id} || undef,
+                });
             }
         }
         elsif ($aws_service eq 'cloudfront') {
@@ -69,21 +74,26 @@ sub work {
         }
 
 
+        my $log;
+        $log->{class} = $blog ? 'blog' : 'system';
+        $log->{blog_id} = $blog->id if $blog;
+
         if ($res) {
             $job->completed();
+            $log->{message} = 'Result of AWS CLI: ' . encode_json($res);
+            $log->{level} = MT::Log::INFO();
+            MT->log($log);
         }
         else {
-            $job->failed(sprintf'%s %s : %s', $aws_service, $aws_task, $AWS::CLIWrapper::Error->{Message});
+            my $errmes = $plugin->translate(
+                "Execution of AWS CLI [_1] [_2] failed: [_3]", $aws_service, $aws_task,
+                    $AWS::CLIWrapper::Error->{Message}  
+            );
 
-            my $log = +{
-                message => $plugin->translate(
-                    "Execution of AWS [_1] [_2] failed: [_3]", $aws_service, $aws_task,
-                        $AWS::CLIWrapper::Error->{Message}
-                ),
-                level   => MT::Log::ERROR(),
-            };
-            $log->{class} = $blog ? 'blog' : 'system';
-            $log->{blog_id} = $blog->id if $blog;
+            $job->failed($errmes);
+
+            $log->{message} = $errmes;
+            $log->{level} = MT::Log::ERROR();
             MT->log($log);
         }    
     }
