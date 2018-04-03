@@ -14,6 +14,8 @@ MovableType管理画面でAWSを操作するプラグインです。
   * WebSite/ブログ個別に設定可能  
     * WebSiteを転送するとブログも一緒に転送されます  
     * Cloudfrontが登録されている場合はInvalidationもします  
+* ログ  
+  * 動作結果はエラーも含めてログに記録されます。  
 
 ## 動作環境
 
