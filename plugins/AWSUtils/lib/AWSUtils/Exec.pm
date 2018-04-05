@@ -26,8 +26,6 @@ sub _init {
     my $aws = AWS::CLIWrapper->new(
         region      => $self->config->{region},
         awscli_path => $self->config->{awscli_path},
-        nofork      => 1,
-        timeout     => 600,
     );
     $self->aws($aws);
 }
@@ -35,16 +33,11 @@ sub _init {
 sub _exec {
     my ($self, $method, $opt) = @_;
 
-    my %param = (
-        nofork => 1,
-        timeout => 600,
-    );
-
     local $ENV{AWS_DEFAULT_OUTPUT}    = 'json';
     local $ENV{AWS_ACCESS_KEY_ID}     = $self->config->{access_key};
     local $ENV{AWS_SECRET_ACCESS_KEY} = $self->config->{secret_key};
 
-    return $self->$method($opt, %param);
+    return $self->$method($opt);
 }
 
 sub create_snapshot {
