@@ -82,7 +82,6 @@ sub work {
             $job->completed();
             $log->{message} = 'Result of AWS CLI: ' . encode_json($res);
             $log->{level} = MT::Log::INFO();
-            MT->log($log);
         }
         else {
             my $errmes = $plugin->translate(
@@ -94,8 +93,8 @@ sub work {
 
             $log->{message} = $errmes;
             $log->{level} = MT::Log::ERROR();
-            MT->log($log);
         }    
+        MT->log($log);
     }
 
 }

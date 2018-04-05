@@ -1,4 +1,11 @@
 <mt:setvarblock name="page_title"><__trans phrase="EC2 Describe Snapshot"></mt:setvarblock>
+
+<mt:setvarblock name="version"><$mt:Version$></mt:setvarblock>
+
+<mt:if name="version" lt="7.0">
+    <mt:include name="include/header.tmpl">
+</mt:if>
+
 <mt:setvarblock name="page_content">
 <p class="">5分毎に更新しています</p>
 <p class="content">
@@ -19,7 +26,12 @@
 </mt:if>
 </p>
 </mt:setvarblock>
+
+<mt:if name="version" lt="7.0">
+<mt:var name="page_content">
+<mt:include name="include/footer.tmpl">
+<mt:else>
 <mt:include name="layout/default.tmpl">
 <mt:var name="layout">
-
+</mt:if>
 

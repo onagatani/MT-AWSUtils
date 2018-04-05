@@ -3,6 +3,7 @@ use strict;
 use warnings;
 use utf8;
 use AWSUtils::Utils qw/create_config/;
+use IPC::Cmd;
 use AWS::CLIWrapper;
 use Class::Accessor::Lite (
     new => 0,
@@ -34,11 +35,16 @@ sub _init {
 sub _exec {
     my ($self, $method, $opt) = @_;
 
+    my %param = (
+        nofork => 1,
+        timeout => 600,
+    );
+
     local $ENV{AWS_DEFAULT_OUTPUT}    = 'json';
     local $ENV{AWS_ACCESS_KEY_ID}     = $self->config->{access_key};
     local $ENV{AWS_SECRET_ACCESS_KEY} = $self->config->{secret_key};
 
-    return $self->$method($opt);
+    return $self->$method($opt, %param);
 }
 
 sub create_snapshot {
