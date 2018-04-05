@@ -24,10 +24,6 @@ MovableType管理画面でAWSを操作するプラグインです。
   * MT6は未検証です  
 * PSGI/CGI  
 * run-periodic-tasksで動作します  
-* 必要な追加CPANモジュール  
-  * Module::Functions  
-  * AWS::CLIWrapper  
-  * Class::Accessor::Lite  
 * pythonモジュールawscliを事前にインストールして下さい（Amazon Linuxの場合は必要ありません）。configureは必要ありません。  
 
 ## 設定
