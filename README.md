@@ -20,8 +20,7 @@ MovableType管理画面でAWSを操作するプラグインです。
 
 ## 動作環境
 
-* Movable Type 7  
-  * MT6は未検証です  
+* Movable Type ６/7  
 * PSGI/CGI  
 * run-periodic-tasksで動作します  
 * pythonモジュールawscliを事前にインストールして下さい（Amazon Linuxの場合は必要ありません）。configureは必要ありません。  
