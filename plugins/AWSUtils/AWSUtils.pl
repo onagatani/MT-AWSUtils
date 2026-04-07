@@ -2,13 +2,12 @@ package MT::Plugin::AWSUtils;
 use strict;
 use warnings;
 use base qw( MT::Plugin );
-use Data::Dumper;
 use MT::TheSchwartz;
-use MT::PluginData; 
+use MT::PluginData;
 use TheSchwartz::Job;
 
 our $PLUGIN_NAME = 'AWSUtils';
-our $VERSION = '0.1';
+our $VERSION = '1.0';
 our $SCHEMA_VERSION = '0.1';
 
 my $plugin = __PACKAGE__->new({
@@ -59,7 +58,7 @@ my $plugin = __PACKAGE__->new({
                         permission        => 'administer',
                         system_permission => 'administer',
                         condition         => \&_check_perm,
-                        view              => [ 'blog', 'website' ],
+                        view              => [ 'blog', 'website', 'content_type' ],
                     },
                     'AWSUtils:s3sync' => {
                         label             => "S3 Synchronization",
@@ -68,7 +67,7 @@ my $plugin = __PACKAGE__->new({
                         permission        => 'administer',
                         system_permission => 'administer',
                         condition         => \&_check_perm,
-                        view              => [ 'blog', 'website' ],
+                        view              => [ 'blog', 'website', 'content_type' ],
                     },
                     'AWSUtils:ec2describesnapshots' => {
                         label             => "EC2 Describe Snapshots",
@@ -98,7 +97,7 @@ my $plugin = __PACKAGE__->new({
             },
         },
         task_workers => {
-            awsutils_worker => { 
+            awsutils_worker => {
                 class => 'AWSUtils::Worker',
                 label => 'AWSUtils Worker',
             },
@@ -131,22 +130,35 @@ MT->add_plugin( $plugin );
 sub _check_perm {
     my $app = MT->instance;
 
-    return 0 unless UNIVERSAL::isa( $app , 'MT::App' );
+    return 0 unless eval { $app->isa('MT::App') };
     return 0 unless $app->user;
 
     my $author = $app->user;
-    $author->is_superuser and return 1;
+    return 1 if $author->is_superuser;
 
-    my $perm;
-    if ( $perm = $author->permissions( 0 ) ) {
-        $perm->can_administer and return 1;
+    my $perm = $author->permissions(0);
+    if ($perm) {
+        return 1 if $perm->can_do('administer');
     }
 
-    return undef;
+    return 0;
+}
+
+sub _validate_request {
+    my $app = shift;
+
+    unless (_check_perm()) {
+        return $app->permission_denied();
+    }
+    return;
 }
 
 sub _ec2describe {
     my $app = shift;
+
+    if (my $err = _validate_request($app)) {
+        return $err;
+    }
 
     my $data = MT::PluginData->load({
         plugin => 'AWSUtils',
@@ -154,7 +166,7 @@ sub _ec2describe {
     });
 
     my $tmpl = $plugin->load_tmpl('ec2_describesnapshot.tmpl')
-        or return $app->error($plugin->translate("Couldn't load template file. : [_1]", 'ec2describe.tmpl'));
+        or return $app->error($plugin->translate("Couldn't load template file. : [_1]", 'ec2_describesnapshot.tmpl'));
 
     my $tmpl_param;
     $tmpl_param->{data} = $data->data() if $data;
@@ -165,19 +177,25 @@ sub _ec2describe {
 sub _ec2snapshot {
     my $app = shift;
 
-    my $job = TheSchwartz::Job->new();
+    if (my $err = _validate_request($app)) {
+        return $err;
+    }
 
     my $config = $plugin->get_config_hash('system');
     my $tmpl_param;
 
-    if ($config->{ec2_volume_id}) {
-        $tmpl_param->{ec2_volume_id} = $config->{ec2_volume_id};
-    }
-    else {
+    unless ($config->{ec2_volume_id}) {
         $tmpl_param->{errmes} =
             $plugin->translate("Couldn't load ec2-volume-id.");
+
+        my $tmpl = $plugin->load_tmpl('ec2_createsnapshot.tmpl')
+            or return $app->error($plugin->translate("Couldn't load template file. : [_1]", 'ec2_createsnapshot.tmpl'));
+        return $app->build_page($tmpl, $tmpl_param);
     }
 
+    $tmpl_param->{ec2_volume_id} = $config->{ec2_volume_id};
+
+    my $job = TheSchwartz::Job->new();
     $job->funcname( 'AWSUtils::Worker' );
     $job->arg({
        blog_id => '0',
@@ -194,10 +212,16 @@ sub _ec2snapshot {
 
     return $app->build_page($tmpl, $tmpl_param);
 }
+
 sub _invalidation {
     my $app = shift;
 
-    my $blog = $app->blog or die;
+    if (my $err = _validate_request($app)) {
+        return $err;
+    }
+
+    my $blog = $app->blog
+        or return $app->error($plugin->translate("This action requires a blog context."));
 
     my $job = TheSchwartz::Job->new();
 
@@ -221,7 +245,12 @@ sub _invalidation {
 sub _s3sync {
     my $app = shift;
 
-    my $blog = $app->blog or die;
+    if (my $err = _validate_request($app)) {
+        return $err;
+    }
+
+    my $blog = $app->blog
+        or return $app->error($plugin->translate("This action requires a blog context."));
 
     my $job = TheSchwartz::Job->new();
 
@@ -253,7 +282,7 @@ sub _system_config {
 <mtapp:setting
     id="secret_key"
     label="<__trans phrase="AWS Secret Key">">
-<input type="text" name="secret_key" value="<$mt:getvar name="secret_key" escape="html"$>" />
+<input type="password" name="secret_key" value="<$mt:getvar name="secret_key" escape="html"$>" />
 <p class="hint"><__trans phrase="hint: AWS Secret Key"></p>
 </mtapp:setting>
 <mtapp:setting

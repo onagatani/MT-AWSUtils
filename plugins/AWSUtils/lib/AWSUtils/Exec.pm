@@ -5,14 +5,15 @@ use utf8;
 use AWSUtils::Utils qw/create_config/;
 use IPC::Cmd;
 use AWS::CLIWrapper;
+use JSON 2;
 use Class::Accessor::Lite (
     new => 0,
     rw  => [ qw(config aws) ],
 );
 
 sub new {
-    my ($class, $opt) = @_;
-    my $self = bless $opt || +{}, $class;
+    my ($class, %opt) = @_;
+    my $self = bless \%opt, $class;
     $self->_init();
     return $self;
 }
@@ -20,7 +21,7 @@ sub new {
 sub _init {
     my $self = shift;
 
-    my $config = create_config();
+    my $config = create_config($self->{blog});
     $self->config($config);
 
     my $aws = AWS::CLIWrapper->new(
@@ -34,8 +35,9 @@ sub _exec {
     my ($self, $method, $opt) = @_;
 
     local $ENV{AWS_DEFAULT_OUTPUT}    = 'json';
-    local $ENV{AWS_ACCESS_KEY_ID}     = $self->config->{access_key};
-    local $ENV{AWS_SECRET_ACCESS_KEY} = $self->config->{secret_key};
+    local $ENV{AWS_PAGER}             = '';
+    local $ENV{AWS_ACCESS_KEY_ID}     = $self->config->{access_key}  if $self->config->{access_key};
+    local $ENV{AWS_SECRET_ACCESS_KEY} = $self->config->{secret_key}  if $self->config->{secret_key};
 
     return $self->$method($opt);
 }
@@ -59,14 +61,14 @@ sub _s3_sync {
 
     my $remote_path = $opt->{s3_bucket} . '/';
     $remote_path .= $opt->{s3_dest_path} if $opt->{s3_dest_path};
-    $remote_path =~ s{/+}{/}img;
-    $remote_path =~ s{^(.*?)/$}{$1}img;
+    $remote_path =~ s{/+}{/}g;
+    $remote_path =~ s{/$}{};
 
     my $s3 = 's3://' . $remote_path;
 
     my @exclude_path;
     if (my $exclude = $opt->{exclude}) {
-        @exclude_path = split',', $exclude;
+        @exclude_path = split ',', $exclude;
     }
 
     my $param = +{};
@@ -81,19 +83,29 @@ sub _cloudfront_invalidation {
 
     $opt->{cf_invalidation_path} = '/*' unless defined $opt->{cf_invalidation_path};
 
+    my $caller_ref = time() . '-' . $$ . '-' . int(rand(10000));
+
+    my $paths_json = encode_json({
+        Paths => {
+            Quantity => 1,
+            Items    => [ $opt->{cf_invalidation_path} ],
+        },
+        CallerReference => $caller_ref,
+    });
+
     return $self->aws->cloudfront(
         'create-invalidation' => {
-            'distribution-id' => $opt->{cf_dist_id},
-            'paths' => $opt->{cf_invalidation_path},
+            'distribution-id'    => $opt->{cf_dist_id},
+            'invalidation-batch' => $paths_json,
         },
     );
-} 
+}
 
 sub _create_snapshot {
     my ($self, $opt) = @_;
     return unless $self->config->{ec2_volume_id};
 
-    return  $self->aws->ec2(
+    return $self->aws->ec2(
         'create-snapshot' => {
             'volume-id'   => $self->config->{ec2_volume_id},
             'description' => $self->config->{ec2_volume_id},
@@ -105,11 +117,11 @@ sub _describe_snapshots {
     my ($self, $opt) = @_;
     return unless $self->config->{ec2_volume_id};
 
-    my $value = sprintf'Name=volume-id,Values=%s', $self->config->{ec2_volume_id};
+    my $value = sprintf 'Name=volume-id,Values=%s', $self->config->{ec2_volume_id};
 
     return $self->aws->ec2(
         'describe-snapshots' => {
-            'filters'   => $value,
+            'filters' => $value,
         },
     );
 }

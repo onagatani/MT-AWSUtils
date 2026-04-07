@@ -4,41 +4,42 @@ use warnings;
 use utf8;
 use base qw( TheSchwartz::Worker );
 use TheSchwartz::Job;
-use Data::Dumper;
 use AWSUtils::Exec;
 use AWSUtils::Utils qw/create_config/;
 use AWS::CLIWrapper;
-use JSON;
+use JSON 2;
 
-sub grab_for    {5}
-sub max_retries {5}
-sub retry_delay {1} 
-
-my $plugin = MT->component('AWSUtils');
+sub grab_for    {600}
+sub max_retries {3}
+sub retry_delay {60}
 
 sub work {
     my $class = shift;
-
     my TheSchwartz::Job $job = shift;
+
+    my $plugin = MT->component('AWSUtils');
 
     my @jobs;
     push @jobs, $job;
     if ( my $key = $job->coalesce ) {
-        while ( my $job  = MT::TheSchwartz->instance->find_job_with_coalescing_value( $class, $key ) ) {
-            push @jobs, $job;
+        while ( my $coalesced_job = MT::TheSchwartz->instance->find_job_with_coalescing_value( $class, $key ) ) {
+            push @jobs, $coalesced_job;
         }
     }
 
-    foreach $job (@jobs) {
+    foreach my $current_job (@jobs) {
 
-        my $args        = $job->arg;
-        my $aws_service = $job->coalesce;
+        my $args        = $current_job->arg;
+        my $aws_service = $current_job->coalesce;
         my $aws_task    = $args->{task};
 
-        my $blog = MT->model('blog')->load($args->{blog_id}) if $args->{blog_id};
+        my $blog;
+        if ($args->{blog_id}) {
+            $blog = MT->model('blog')->load($args->{blog_id});
+        }
 
         my $config = create_config($blog);
-        my $aws = AWSUtils::Exec->new;
+        my $aws = AWSUtils::Exec->new(blog => $blog);
 
         my $res;
         if ($aws_service eq 's3') {
@@ -50,10 +51,15 @@ sub work {
                     s3_dest_path => $config->{s3_dest_path} || undef,
                     exclude      => $args->{exclude} || undef,
                 });
-                $res .= $aws->cloudfront_invalidation(+{
-                    cf_invalidation_path => $config->{cf_invalidation_path} || undef,
-                    cf_dist_id           => $config->{cf_dist_id} || undef,
-                });
+                if ($config->{cf_dist_id}) {
+                    my $cf_res = $aws->cloudfront_invalidation(+{
+                        cf_invalidation_path => $config->{cf_invalidation_path} || undef,
+                        cf_dist_id           => $config->{cf_dist_id} || undef,
+                    });
+                    if ($res && $cf_res) {
+                        $res = { s3_sync => $res, cloudfront => $cf_res };
+                    }
+                }
             }
         }
         elsif ($aws_service eq 'cloudfront') {
@@ -73,30 +79,33 @@ sub work {
             next;
         }
 
-
-        my $log;
+        my $log = {};
         $log->{class} = $blog ? 'blog' : 'system';
-        $log->{blog_id} = $blog->id if $blog;
+        $log->{blog_id} = $blog ? $blog->id : 0;
+        $log->{category} = 'AWSUtils';
 
         if ($res) {
-            $job->completed();
-            $log->{message} = 'Result of AWS CLI: ' . encode_json($res);
+            $current_job->completed();
+            my $json_res = ref($res) ? encode_json($res) : "$res";
+            $log->{message} = 'Result of AWS CLI: ' . $json_res;
             $log->{level} = MT::Log::INFO();
         }
         else {
-            my $errmes = $plugin->translate(
-                "Execution of AWS CLI [_1] [_2] failed: [_3]", $aws_service, $aws_task,
-                    $AWS::CLIWrapper::Error->{Message}  
-            );
+            my $error_msg = $AWS::CLIWrapper::Error->{Message} || 'Unknown error';
+            my $errmes = $plugin
+                ? $plugin->translate(
+                    "Execution of AWS CLI [_1] [_2] failed: [_3]",
+                    $aws_service, $aws_task, $error_msg
+                  )
+                : "Execution of AWS CLI $aws_service $aws_task failed: $error_msg";
 
-            $job->failed($errmes);
+            $current_job->failed($errmes);
 
             $log->{message} = $errmes;
             $log->{level} = MT::Log::ERROR();
-        }    
+        }
         MT->log($log);
     }
-
 }
 
 1;

@@ -1,37 +1,27 @@
 <mt:setvarblock name="page_title"><__trans phrase="EC2 Describe Snapshot"></mt:setvarblock>
 
-<mt:setvarblock name="version"><$mt:Version$></mt:setvarblock>
-
-<mt:if name="version" lt="7.0">
-    <mt:include name="include/header.tmpl">
-</mt:if>
-
 <mt:setvarblock name="page_content">
 <p class="">5分毎に更新しています</p>
-<p class="content">
 <mt:if name="data">
-<table id="awsutils" class="">
-<tr class="">
+<table id="awsutils" class="listing-table compact">
+<thead>
+<tr>
 <th class="">SnapshotId</th>
 <th class="">StartTime</th>
+</tr>
+</thead>
+<tbody>
 <mt:loop name="data">
-<tr class="">
+<tr>
 <td class=""><mt:var name="SnapshotId"></td>
 <td class=""><mt:var name="StartTime"></td>
 </tr>
 </mt:loop>
+</tbody>
 </table>
 <mt:else>
-現在snapshotはありません
+<p>現在snapshotはありません</p>
 </mt:if>
-</p>
 </mt:setvarblock>
 
-<mt:if name="version" lt="7.0">
-<mt:var name="page_content">
-<mt:include name="include/footer.tmpl">
-<mt:else>
 <mt:include name="layout/default.tmpl">
-<mt:var name="layout">
-</mt:if>
-
