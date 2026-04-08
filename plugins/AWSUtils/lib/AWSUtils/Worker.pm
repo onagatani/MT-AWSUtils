@@ -36,25 +36,36 @@ sub work {
         my $blog;
         if ($args->{blog_id}) {
             $blog = MT->model('blog')->load($args->{blog_id});
+            unless ($blog) {
+                my $errmes = "AWSUtils: blog_id=$args->{blog_id} not found";
+                $current_job->failed($errmes);
+                MT->log({
+                    message  => $errmes,
+                    level    => MT::Log::ERROR(),
+                    class    => 'system',
+                    category => 'AWSUtils',
+                });
+                next;
+            }
         }
 
-        my $config = create_config($blog);
         my $aws = AWSUtils::Exec->new(blog => $blog);
+        my $config = $aws->config;
 
         my $res;
         if ($aws_service eq 's3') {
             if ($aws_task eq 'sync') {
                 next unless $blog;
-                $res = $aws->s3_sync(+{
+                $res = $aws->s3_sync({
                     local_path   => $blog->site_path,
-                    s3_bucket    => $config->{s3_bucket} || undef,
-                    s3_dest_path => $config->{s3_dest_path} || undef,
-                    exclude      => $args->{exclude} || undef,
+                    s3_bucket    => $config->{s3_bucket},
+                    s3_dest_path => $config->{s3_dest_path},
+                    exclude      => $args->{exclude},
                 });
                 if ($config->{cf_dist_id}) {
-                    my $cf_res = $aws->cloudfront_invalidation(+{
-                        cf_invalidation_path => $config->{cf_invalidation_path} || undef,
-                        cf_dist_id           => $config->{cf_dist_id} || undef,
+                    my $cf_res = $aws->cloudfront_invalidation({
+                        cf_invalidation_path => $config->{cf_invalidation_path},
+                        cf_dist_id           => $config->{cf_dist_id},
                     });
                     if ($res && $cf_res) {
                         $res = { s3_sync => $res, cloudfront => $cf_res };
@@ -64,9 +75,9 @@ sub work {
         }
         elsif ($aws_service eq 'cloudfront') {
             if ($aws_task eq 'create-invalidation') {
-                $res = $aws->cloudfront_invalidation(+{
-                    cf_invalidation_path => $config->{cf_invalidation_path} || undef,
-                    cf_dist_id           => $config->{cf_dist_id} || undef,
+                $res = $aws->cloudfront_invalidation({
+                    cf_invalidation_path => $config->{cf_invalidation_path},
+                    cf_dist_id           => $config->{cf_dist_id},
                 });
             }
         }

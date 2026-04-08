@@ -7,6 +7,7 @@ use lib 'plugins/AWSUtils/lib';
 use lib 'plugins/AWSUtils/extlib';
 
 use MockMT;
+use AWSUtils::Utils qw/create_config/;
 use JSON 2;
 
 ###############################################################################
@@ -42,6 +43,11 @@ use JSON 2;
         my ($self) = @_;
         push @_calls, { method => 'create_snapshot' };
         return $_results{create_snapshot};
+    }
+
+    sub config {
+        my ($self) = @_;
+        return AWSUtils::Utils::create_config($self->{blog});
     }
 
     sub _set_result  { $_results{$_[1]} = $_[2] }

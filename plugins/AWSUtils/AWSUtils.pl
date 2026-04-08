@@ -223,6 +223,11 @@ sub _invalidation {
     my $blog = $app->blog
         or return $app->error($plugin->translate("This action requires a blog context."));
 
+    my $config = $plugin->get_config_hash("blog:" . $blog->id);
+    unless ($config->{cf_dist_id}) {
+        return $app->error($plugin->translate("CloudFront Distribution ID is not configured."));
+    }
+
     my $job = TheSchwartz::Job->new();
 
     $job->funcname( 'AWSUtils::Worker' );
@@ -251,6 +256,11 @@ sub _s3sync {
 
     my $blog = $app->blog
         or return $app->error($plugin->translate("This action requires a blog context."));
+
+    my $config = $plugin->get_config_hash("blog:" . $blog->id);
+    unless ($config->{s3_bucket}) {
+        return $app->error($plugin->translate("S3 Bucket is not configured."));
+    }
 
     my $job = TheSchwartz::Job->new();
 

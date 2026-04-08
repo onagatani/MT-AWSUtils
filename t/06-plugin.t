@@ -232,8 +232,27 @@ subtest '_invalidation' => sub {
         ok($app->{_last_error}, 'error set on app');
     };
 
+    subtest 'returns error without cf_dist_id' => sub {
+        _setup_plugin();
+        my $p = MT->component('AWSUtils');
+        $p->_set_config('blog:10', {});
+        MT::TheSchwartz->_clear_inserted_jobs();
+
+        my $blog = MockBlog->new(id => 10);
+        my $author = MockAuthor->new(is_superuser => 1);
+        my $app = MT::App->new(user => $author, blog => $blog);
+        MT->_set_instance($app);
+
+        my $result = MT::Plugin::AWSUtils::_invalidation($app);
+        is($result, undef, 'returns undef (error)');
+        my @jobs = MT::TheSchwartz->_get_inserted_jobs();
+        is(scalar @jobs, 0, 'no job inserted without cf_dist_id');
+    };
+
     subtest 'inserts cloudfront job with blog' => sub {
         _setup_plugin();
+        my $p = MT->component('AWSUtils');
+        $p->_set_config('blog:10', { cf_dist_id => 'E123456' });
         MT::TheSchwartz->_clear_inserted_jobs();
 
         my $blog = MockBlog->new(id => 10);
@@ -271,8 +290,27 @@ subtest '_s3sync' => sub {
         ok($app->{_last_error}, 'error set on app');
     };
 
+    subtest 'returns error without s3_bucket' => sub {
+        _setup_plugin();
+        my $p = MT->component('AWSUtils');
+        $p->_set_config('blog:15', {});
+        MT::TheSchwartz->_clear_inserted_jobs();
+
+        my $blog = MockBlog->new(id => 15);
+        my $author = MockAuthor->new(is_superuser => 1);
+        my $app = MT::App->new(user => $author, blog => $blog);
+        MT->_set_instance($app);
+
+        my $result = MT::Plugin::AWSUtils::_s3sync($app);
+        is($result, undef, 'returns undef (error)');
+        my @jobs = MT::TheSchwartz->_get_inserted_jobs();
+        is(scalar @jobs, 0, 'no job inserted without s3_bucket');
+    };
+
     subtest 'inserts s3 sync job with blog' => sub {
         _setup_plugin();
+        my $p = MT->component('AWSUtils');
+        $p->_set_config('blog:15', { s3_bucket => 'my-bucket' });
         MT::TheSchwartz->_clear_inserted_jobs();
 
         my $blog = MockBlog->new(id => 15);

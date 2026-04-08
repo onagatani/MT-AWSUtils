@@ -3,7 +3,6 @@ use strict;
 use warnings;
 use utf8;
 use AWSUtils::Utils qw/create_config/;
-use IPC::Cmd;
 use AWS::CLIWrapper;
 use JSON 2;
 use Class::Accessor::Lite (
@@ -81,14 +80,16 @@ sub _cloudfront_invalidation {
     my ($self, $opt) = @_;
     return unless $opt->{cf_dist_id};
 
-    $opt->{cf_invalidation_path} = '/*' unless defined $opt->{cf_invalidation_path};
+    my $invalidation_path = defined $opt->{cf_invalidation_path}
+        ? $opt->{cf_invalidation_path}
+        : '/*';
 
     my $caller_ref = time() . '-' . $$ . '-' . int(rand(10000));
 
     my $paths_json = encode_json({
         Paths => {
             Quantity => 1,
-            Items    => [ $opt->{cf_invalidation_path} ],
+            Items    => [ $invalidation_path ],
         },
         CallerReference => $caller_ref,
     });

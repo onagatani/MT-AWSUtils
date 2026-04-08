@@ -16,7 +16,7 @@ our $Error = { Message => '', Code => '' };
 our $true  = do { bless \(my $dummy = 1), "AWS::CLIWrapper::Boolean" };
 our $false = do { bless \(my $dummy = 0), "AWS::CLIWrapper::Boolean" };
 
-my $AWSCLI_VERSION = undef;
+my %AWSCLI_VERSIONS;  # keyed by awscli_path
 
 sub new {
     my($class, %param) = @_;
@@ -45,10 +45,11 @@ sub awscli_path {
 
 sub awscli_version {
     my ($self) = @_;
-    unless (defined $AWSCLI_VERSION) {
-        $AWSCLI_VERSION = do {
-            my $awscli_path = $self->awscli_path;
-            my $vs = qx($awscli_path --version 2>&1) || '';
+    my $path = $self->awscli_path;
+    unless (defined $AWSCLI_VERSIONS{$path}) {
+        $AWSCLI_VERSIONS{$path} = do {
+            my $quoted = shell_quote($path);
+            my $vs = qx($quoted --version 2>&1) || '';
             my $v;
             if ($vs =~ m{/([0-9]+\.[0-9]+\.[0-9]+)}) {
                 $v = $1;
@@ -58,7 +59,7 @@ sub awscli_version {
             version->parse($v);
         };
     }
-    return $AWSCLI_VERSION;
+    return $AWSCLI_VERSIONS{$path};
 }
 
 sub _is_v2 {
@@ -184,7 +185,8 @@ sub _execute {
             $ret->{exit_code} = 2;
             $ret->{timeout} = 1 if defined $err && $err =~ /^IPC::Cmd::TimeOut:/;
         }
-        print "";
+        # flush stdout
+        STDOUT->flush;
     } else {
         $ret = IPC::Cmd::run_forked(join(' ', @cmd), {
             timeout => $timeout,
